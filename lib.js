@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     prefill: '',
     useStartReplyWith: false,
+    captureTrailingAssistantPrefill: false,
     geminiOnly: true,
     useOpenAIProxyTransport: false,
     includeQuiet: false,
@@ -184,6 +185,26 @@ export function removeTrailingAssistantPrefill(messages, prefill) {
 }
 
 /**
+ * Read a plain trailing assistant message that can be treated as a prefill.
+ * Tool calls and multimodal content are intentionally ignored.
+ * @param {object[]} messages Final Chat Completion messages.
+ * @returns {string|null} Exact prefill text, or null when no candidate exists.
+ */
+export function getTrailingAssistantPrefill(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return null;
+    }
+
+    const message = messages[messages.length - 1];
+    const hasToolCalls = Array.isArray(message?.tool_calls) && message.tool_calls.length > 0;
+    if (message?.role !== 'assistant' || hasToolCalls || typeof message.content !== 'string') {
+        return null;
+    }
+
+    return message.content.length > 0 ? message.content : null;
+}
+
+/**
  * Append a synthetic OpenAI tool-call/result pair containing an assistant prefill.
  * SillyTavern converts this pair to Gemini functionCall/functionResponse for native
  * Google sources. OpenAI-compatible Gemini proxies can transform the same pair.
@@ -192,7 +213,7 @@ export function removeTrailingAssistantPrefill(messages, prefill) {
  * @param {object} rawSettings Extension settings.
  * @param {unknown} resolvedPrefill Prefill after SillyTavern macro substitution.
  * @param {{idFactory?: () => string}} [options] Test/customization hooks.
- * @returns {{injected: boolean, reason?: string, callId?: string, model?: string, type?: string, prefillLength?: number, postProcessing?: object, nativePrefillRemoved?: boolean}}
+ * @returns {{injected: boolean, reason?: string, callId?: string, model?: string, type?: string, prefillLength?: number, prefillSource?: string, postProcessing?: object, nativePrefillRemoved?: boolean, trailingPrefillRemoved?: boolean, transport?: object}}
  */
 export function injectFunctionResponsePrefill(generateData, rawSettings, resolvedPrefill, options = {}) {
     const settings = mergeSettings(rawSettings);
@@ -215,7 +236,20 @@ export function injectFunctionResponsePrefill(generateData, rawSettings, resolve
         return { injected: false, reason: `generation-type-${type}-disabled`, model, type };
     }
 
-    const prefill = String(resolvedPrefill ?? '');
+    if (isSyntheticTail(generateData.messages)) {
+        generateData.messages.splice(-2, 2);
+    }
+
+    const trailingPrefill = settings.captureTrailingAssistantPrefill
+        ? getTrailingAssistantPrefill(generateData.messages)
+        : null;
+    const prefill = trailingPrefill ?? String(resolvedPrefill ?? '');
+    const prefillSource = trailingPrefill !== null
+        ? 'trailing-assistant'
+        : settings.useStartReplyWith
+            ? 'start-reply-with'
+            : 'custom';
+
     if (prefill.length === 0) {
         return { injected: false, reason: 'empty-prefill', model, type };
     }
@@ -225,11 +259,10 @@ export function injectFunctionResponsePrefill(generateData, rawSettings, resolve
         return { injected: false, reason: postProcessing.reason, model, type, postProcessing };
     }
 
-    if (isSyntheticTail(generateData.messages)) {
-        generateData.messages.splice(-2, 2);
-    }
-
-    const nativePrefillRemoved = settings.useStartReplyWith
+    const trailingPrefillRemoved = trailingPrefill !== null
+        ? removeTrailingAssistantPrefill(generateData.messages, trailingPrefill)
+        : false;
+    const nativePrefillRemoved = !trailingPrefillRemoved && settings.useStartReplyWith
         ? removeTrailingAssistantPrefill(generateData.messages, prefill)
         : false;
 
@@ -270,8 +303,10 @@ export function injectFunctionResponsePrefill(generateData, rawSettings, resolve
         model,
         type,
         prefillLength: prefill.length,
+        prefillSource,
         postProcessing,
         nativePrefillRemoved,
+        trailingPrefillRemoved,
         transport,
     };
 }

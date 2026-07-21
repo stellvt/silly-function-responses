@@ -114,6 +114,7 @@ async function renderSettings() {
 
         bindCheckbox('sfr_enabled', 'enabled');
         bindCheckbox('sfr_use_start_reply_with', 'useStartReplyWith', updatePrefillSourceUi);
+        bindCheckbox('sfr_capture_trailing_assistant_prefill', 'captureTrailingAssistantPrefill');
         bindCheckbox('sfr_gemini_only', 'geminiOnly');
         bindCheckbox('sfr_use_openai_proxy_transport', 'useOpenAIProxyTransport');
         bindCheckbox('sfr_include_quiet', 'includeQuiet');
@@ -171,7 +172,12 @@ function handleChatCompletionSettingsReady(generateData) {
 
     const result = injectFunctionResponsePrefill(generateData, settings, resolvedPrefill);
     if (result.injected) {
-        const sourceNote = settings.useStartReplyWith ? '; source: Start Reply With' : '';
+        const sourceLabels = {
+            'custom': 'custom prefill',
+            'start-reply-with': 'Start Reply With',
+            'trailing-assistant': 'trailing assistant message',
+        };
+        const sourceNote = `; source: ${sourceLabels[result.prefillSource] ?? result.prefillSource}`;
         setStatus(
             'success',
             `Prefill applied: ${result.model || 'unknown model'}, ${result.prefillLength} chars${sourceNote}`,
@@ -180,7 +186,9 @@ function handleChatCompletionSettingsReady(generateData) {
             model: result.model,
             type: result.type,
             prefillLength: result.prefillLength,
+            prefillSource: result.prefillSource,
             nativePrefillRemoved: result.nativePrefillRemoved,
+            trailingPrefillRemoved: result.trailingPrefillRemoved,
             postProcessing: result.postProcessing,
             transport: result.transport,
         });
@@ -193,9 +201,14 @@ function handleChatCompletionSettingsReady(generateData) {
 }
 
 getSettings();
-eventSource.on(eventTypes.CHAT_COMPLETION_SETTINGS_READY, handleChatCompletionSettingsReady);
+eventSource.makeLast(eventTypes.CHAT_COMPLETION_SETTINGS_READY, handleChatCompletionSettingsReady);
 eventSource.on(eventTypes.APP_READY, () => {
-    setTimeout(() => void renderSettings(), 0);
+    setTimeout(() => {
+        // Re-apply after every extension has loaded so fake prefill conversion
+        // is the final CHAT_COMPLETION_SETTINGS_READY transformation.
+        eventSource.makeLast(eventTypes.CHAT_COMPLETION_SETTINGS_READY, handleChatCompletionSettingsReady);
+        void renderSettings();
+    }, 0);
 });
 
 if (document.readyState !== 'loading') {

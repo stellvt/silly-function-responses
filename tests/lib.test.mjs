@@ -5,6 +5,7 @@ import {
     DEFAULT_SETTINGS,
     TOOL_NAME,
     getOpenAIProxyBase,
+    getTrailingAssistantPrefill,
     injectFunctionResponsePrefill,
     isGeminiModel,
     mergeSettings,
@@ -28,6 +29,7 @@ test('mergeSettings fills new defaults and preserves saved values', () => {
     assert.equal(merged.enabled, false);
     assert.equal(merged.prefill, 'x');
     assert.equal(merged.useStartReplyWith, DEFAULT_SETTINGS.useStartReplyWith);
+    assert.equal(merged.captureTrailingAssistantPrefill, false);
     assert.equal(merged.geminiOnly, DEFAULT_SETTINGS.geminiOnly);
     assert.equal(merged.useOpenAIProxyTransport, false);
 });
@@ -180,6 +182,66 @@ test('preserves ordinary history when Start Reply With is not trailing', () => {
 
     assert.equal(removeTrailingAssistantPrefill(messages, 'ALPHA-'), false);
     assert.equal(messages.length, 2);
+});
+
+test('detects only plain non-empty trailing assistant messages', () => {
+    assert.equal(getTrailingAssistantPrefill([
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'TAIL-' },
+    ]), 'TAIL-');
+    assert.equal(getTrailingAssistantPrefill([{ role: 'assistant', content: '' }]), null);
+    assert.equal(getTrailingAssistantPrefill([{
+        role: 'assistant',
+        content: 'not a prefill',
+        tool_calls: [{ id: 'call' }],
+    }]), null);
+    assert.equal(getTrailingAssistantPrefill([{ role: 'assistant', content: [{ type: 'text', text: 'x' }] }]), null);
+});
+
+test('captures a trailing assistant prefill without configured prefill text', () => {
+    const data = request({
+        messages: [{ role: 'assistant', content: 'WHOLE CHAT AS PREFILL-' }],
+    });
+    const settings = { ...DEFAULT_SETTINGS, captureTrailingAssistantPrefill: true };
+    const result = injectFunctionResponsePrefill(data, settings, '', {
+        idFactory: () => 'sfr_trailing_only',
+    });
+
+    assert.equal(result.injected, true);
+    assert.equal(result.prefillSource, 'trailing-assistant');
+    assert.equal(result.trailingPrefillRemoved, true);
+    assert.equal(data.messages.length, 2);
+    assert.equal(data.messages.at(-1).content, 'WHOLE CHAT AS PREFILL-');
+});
+
+test('trailing assistant prefill overrides configured prefill text', () => {
+    const data = request({
+        messages: [
+            { role: 'user', content: 'Hello' },
+            { role: 'assistant', content: 'TRAILING-' },
+        ],
+    });
+    const settings = { ...DEFAULT_SETTINGS, captureTrailingAssistantPrefill: true };
+    const result = injectFunctionResponsePrefill(data, settings, 'CUSTOM-', {
+        idFactory: () => 'sfr_trailing_override',
+    });
+
+    assert.equal(result.prefillSource, 'trailing-assistant');
+    assert.equal(data.messages.at(-1).content, 'TRAILING-');
+    assert.equal(data.messages.some(message => message.content === 'CUSTOM-'), false);
+});
+
+test('does not remove a trailing prefill when post-processing is incompatible', () => {
+    const data = request({
+        custom_prompt_post_processing: 'single',
+        messages: [{ role: 'assistant', content: 'KEEP ME' }],
+    });
+    const settings = { ...DEFAULT_SETTINGS, captureTrailingAssistantPrefill: true };
+    const result = injectFunctionResponsePrefill(data, settings, '');
+
+    assert.equal(result.injected, false);
+    assert.equal(data.messages.length, 1);
+    assert.equal(data.messages[0].content, 'KEEP ME');
 });
 
 test('native Start Reply With mode replaces direct assistant prefill with function response', () => {

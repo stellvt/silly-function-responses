@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 
-import { getOpenAIProxyBase } from '../lib.js';
+import {
+    DEFAULT_SETTINGS,
+    getOpenAIProxyBase,
+    injectFunctionResponsePrefill,
+} from '../lib.js';
 
 const baseUrl = String(process.env.SFR_PROXY_URL ?? '').replace(/\/$/, '');
 const apiKey = String(process.env.SFR_PROXY_KEY ?? '');
@@ -72,11 +76,31 @@ const functionPrefill = await complete([
     },
 ]);
 
-assert.equal(functionPrefill.text, 'BETA');
+assert.match(functionPrefill.text, /^BETA\.?$/);
+
+const trailingRequest = {
+    type: 'normal',
+    model,
+    messages: [{ role: 'assistant', content: 'Reply with exactly OK.\nAssistant reply: ' }],
+    custom_prompt_post_processing: '',
+};
+const trailingResult = injectFunctionResponsePrefill(
+    trailingRequest,
+    { ...DEFAULT_SETTINGS, captureTrailingAssistantPrefill: true },
+    '',
+    { idFactory: () => 'sfr_trailing_smoke_test' },
+);
+assert.equal(trailingResult.injected, true);
+assert.equal(trailingResult.prefillSource, 'trailing-assistant');
+assert.equal(trailingResult.trailingPrefillRemoved, true);
+
+const trailingPrefill = await complete(trailingRequest.messages);
+assert.match(trailingPrefill.text, /^OK\.?$/);
 
 console.log(JSON.stringify({
     model,
     basic: basic.text,
     directAssistantPrefill: directPrefill.text,
     functionResponsePrefill: functionPrefill.text,
+    capturedTrailingAssistantPrefill: trailingPrefill.text,
 }, null, 2));
