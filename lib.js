@@ -153,6 +153,8 @@ export function routeNativeGeminiProxyThroughOpenAI(generateData, enabled = fals
 
     generateData.chat_completion_source = 'openai';
     generateData.reverse_proxy = getOpenAIProxyBase(reverseProxy);
+    delete generateData.frequency_penalty;
+    delete generateData.presence_penalty;
 
     return {
         routed: true,

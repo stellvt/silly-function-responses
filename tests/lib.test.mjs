@@ -277,6 +277,8 @@ test('routes native Gemini reverse proxies through their OpenAI-compatible endpo
             chat_completion_source: source,
             reverse_proxy: 'https://example.test/proxy/gemini',
             proxy_password: 'secret',
+            frequency_penalty: 0,
+            presence_penalty: 0,
         });
         const result = routeNativeGeminiProxyThroughOpenAI(data, true);
 
@@ -285,6 +287,8 @@ test('routes native Gemini reverse proxies through their OpenAI-compatible endpo
         assert.equal(data.chat_completion_source, 'openai');
         assert.equal(data.reverse_proxy, 'https://example.test/proxy/gemini/v1');
         assert.equal(data.proxy_password, 'secret');
+        assert.equal(Object.hasOwn(data, 'frequency_penalty'), false);
+        assert.equal(Object.hasOwn(data, 'presence_penalty'), false);
     }
 });
 
@@ -293,12 +297,16 @@ test('leaves direct native Gemini and unrelated sources untouched', () => {
     const custom = request({
         chat_completion_source: 'custom',
         reverse_proxy: 'https://example.test/proxy',
+        frequency_penalty: 0.5,
+        presence_penalty: 0.25,
     });
 
     assert.deepEqual(routeNativeGeminiProxyThroughOpenAI(direct, true), { routed: false });
     assert.deepEqual(routeNativeGeminiProxyThroughOpenAI(custom, true), { routed: false });
     assert.equal(direct.chat_completion_source, 'makersuite');
     assert.equal(custom.chat_completion_source, 'custom');
+    assert.equal(custom.frequency_penalty, 0.5);
+    assert.equal(custom.presence_penalty, 0.25);
 });
 
 test('proxy routing is disabled by default', () => {

@@ -81,18 +81,29 @@ assert.match(functionPrefill.text, /^BETA\.?$/);
 const trailingRequest = {
     type: 'normal',
     model,
+    chat_completion_source: 'makersuite',
+    reverse_proxy: baseUrl,
+    frequency_penalty: 0.75,
+    presence_penalty: 0.5,
     messages: [{ role: 'assistant', content: 'Reply with exactly OK.\nAssistant reply: ' }],
     custom_prompt_post_processing: '',
 };
 const trailingResult = injectFunctionResponsePrefill(
     trailingRequest,
-    { ...DEFAULT_SETTINGS, captureTrailingAssistantPrefill: true },
+    {
+        ...DEFAULT_SETTINGS,
+        captureTrailingAssistantPrefill: true,
+        useOpenAIProxyTransport: true,
+    },
     '',
     { idFactory: () => 'sfr_trailing_smoke_test' },
 );
 assert.equal(trailingResult.injected, true);
 assert.equal(trailingResult.prefillSource, 'trailing-assistant');
 assert.equal(trailingResult.trailingPrefillRemoved, true);
+assert.equal(trailingRequest.chat_completion_source, 'openai');
+assert.equal(Object.hasOwn(trailingRequest, 'frequency_penalty'), false);
+assert.equal(Object.hasOwn(trailingRequest, 'presence_penalty'), false);
 
 const trailingPrefill = await complete(trailingRequest.messages);
 assert.match(trailingPrefill.text, /^OK\.?$/);
