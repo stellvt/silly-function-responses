@@ -1,0 +1,64 @@
+<div id="sfr_settings" class="sfr_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Silly Function Responses</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div class="sfr_content">
+                <label class="checkbox_label" for="sfr_enabled">
+                    <input id="sfr_enabled" type="checkbox">
+                    <span>Enabled</span>
+                </label>
+
+                <label class="checkbox_label" for="sfr_use_start_reply_with">
+                    <input id="sfr_use_start_reply_with" type="checkbox">
+                    <span>Use Start Reply With</span>
+                </label>
+
+                <label for="sfr_prefill"><b>Custom assistant prefill</b></label>
+                <textarea
+                    id="sfr_prefill"
+                    class="text_pole textarea_compact"
+                    rows="5"
+                    placeholder="For example: Certainly. Continuing the scene:"
+                ></textarea>
+                <div class="sfr_textarea_footer">
+                    <span id="sfr_prefill_count">0 chars</span>
+                </div>
+
+                <label class="checkbox_label" for="sfr_gemini_only">
+                    <input id="sfr_gemini_only" type="checkbox">
+                    <span>Gemini models only</span>
+                </label>
+
+                <label class="checkbox_label" for="sfr_use_openai_proxy_transport">
+                    <input id="sfr_use_openai_proxy_transport" type="checkbox">
+                    <span>OpenAI transport for native reverse proxies</span>
+                </label>
+
+                <details class="sfr_generation_types">
+                    <summary>Additional generation types</summary>
+                    <label class="checkbox_label" for="sfr_include_quiet">
+                        <input id="sfr_include_quiet" type="checkbox">
+                        <span>Background / quiet requests</span>
+                    </label>
+                    <label class="checkbox_label" for="sfr_include_continue">
+                        <input id="sfr_include_continue" type="checkbox">
+                        <span>Continue</span>
+                    </label>
+                    <label class="checkbox_label" for="sfr_include_impersonate">
+                        <input id="sfr_include_impersonate" type="checkbox">
+                        <span>Impersonate</span>
+                    </label>
+                </details>
+
+                <div class="sfr_actions">
+                    <input id="sfr_clear_prefill" class="menu_button" type="button" value="Clear prefill">
+                </div>
+
+                <div id="sfr_status" class="sfr_status" data-kind="idle">Waiting for generation.</div>
+            </div>
+        </div>
+    </div>
+</div>

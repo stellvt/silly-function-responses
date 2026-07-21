@@ -1,0 +1,78 @@
+.sfr_content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.sfr_settings .checkbox_label {
+    align-items: flex-start;
+}
+
+.sfr_settings textarea {
+    box-sizing: border-box;
+    min-height: 7rem;
+    resize: vertical;
+    width: 100%;
+}
+
+.sfr_status {
+    font-size: 0.9em;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.sfr_settings textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.sfr_textarea_footer {
+    display: flex;
+    font-size: 0.82em;
+    justify-content: flex-end;
+    opacity: 0.72;
+}
+
+#sfr_prefill_count {
+    flex: 0 0 auto;
+}
+
+.sfr_generation_types {
+    border-left: 2px solid var(--SmartThemeBorderColor);
+    padding-left: 0.75rem;
+}
+
+.sfr_generation_types summary {
+    cursor: pointer;
+    margin-bottom: 0.45rem;
+}
+
+.sfr_generation_types .checkbox_label + .checkbox_label {
+    margin-top: 0.35rem;
+}
+
+.sfr_actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.sfr_status {
+    border-left: 3px solid var(--SmartThemeBorderColor);
+    opacity: 0.85;
+    padding: 0.35rem 0.55rem;
+}
+
+.sfr_status[data-kind='success'] {
+    border-left-color: #49a56f;
+}
+
+.sfr_status[data-kind='error'] {
+    border-left-color: #d45b5b;
+}
+
+@media (max-width: 600px) {
+    .sfr_textarea_footer {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}

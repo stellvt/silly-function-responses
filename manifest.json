@@ -1,0 +1,11 @@
+{
+    "display_name": "Silly Function Responses",
+    "loading_order": 90,
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Aster/a/",
+    "version": "0.2.3",
+    "homePage": "https://github.com/stellvt/silly-function-responses",
+    "auto_update": false,
+    "minimum_client_version": "1.18.0"
+}
