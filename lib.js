@@ -197,13 +197,54 @@ export function getTrailingAssistantPrefill(messages) {
         return null;
     }
 
-    const message = messages[messages.length - 1];
-    const hasToolCalls = Array.isArray(message?.tool_calls) && message.tool_calls.length > 0;
-    if (message?.role !== 'assistant' || hasToolCalls || typeof message.content !== 'string') {
-        return null;
+    const prefills = [];
+    for (let index = messages.length - 1; index >= 0; index--) {
+        const message = messages[index];
+        const hasToolCalls = Array.isArray(message?.tool_calls) && message.tool_calls.length > 0;
+        if (
+            message?.role !== 'assistant'
+            || hasToolCalls
+            || typeof message.content !== 'string'
+            || message.content.length === 0
+        ) {
+            break;
+        }
+
+        prefills.unshift(message.content);
     }
 
-    return message.content.length > 0 ? message.content : null;
+    return prefills.length > 0 ? prefills.join('\n\n') : null;
+}
+
+function removeTrailingAssistantPrefillSequence(messages, combinedPrefill) {
+    if (!Array.isArray(messages) || !combinedPrefill) {
+        return false;
+    }
+
+    const prefills = [];
+    let removeCount = 0;
+    for (let index = messages.length - 1; index >= 0; index--) {
+        const message = messages[index];
+        const hasToolCalls = Array.isArray(message?.tool_calls) && message.tool_calls.length > 0;
+        if (
+            message?.role !== 'assistant'
+            || hasToolCalls
+            || typeof message.content !== 'string'
+            || message.content.length === 0
+        ) {
+            break;
+        }
+
+        prefills.unshift(message.content);
+        removeCount++;
+    }
+
+    if (prefills.join('\n\n') !== combinedPrefill || removeCount === 0) {
+        return false;
+    }
+
+    messages.splice(-removeCount, removeCount);
+    return true;
 }
 
 /**
@@ -245,9 +286,18 @@ export function injectFunctionResponsePrefill(generateData, rawSettings, resolve
     const trailingPrefill = settings.captureTrailingAssistantPrefill
         ? getTrailingAssistantPrefill(generateData.messages)
         : null;
-    const prefill = trailingPrefill ?? String(resolvedPrefill ?? '');
+    const configuredPrefill = String(resolvedPrefill ?? '');
+    const appendStartReplyWith = trailingPrefill !== null
+        && settings.useStartReplyWith
+        && configuredPrefill.length > 0
+        && !trailingPrefill.endsWith(configuredPrefill);
+    const prefill = trailingPrefill !== null
+        ? `${trailingPrefill}${appendStartReplyWith ? `\n\n${configuredPrefill}` : ''}`
+        : configuredPrefill;
     const prefillSource = trailingPrefill !== null
-        ? 'trailing-assistant'
+        ? settings.useStartReplyWith && configuredPrefill.length > 0
+            ? 'trailing-assistant+start-reply-with'
+            : 'trailing-assistant'
         : settings.useStartReplyWith
             ? 'start-reply-with'
             : 'custom';
@@ -262,7 +312,7 @@ export function injectFunctionResponsePrefill(generateData, rawSettings, resolve
     }
 
     const trailingPrefillRemoved = trailingPrefill !== null
-        ? removeTrailingAssistantPrefill(generateData.messages, trailingPrefill)
+        ? removeTrailingAssistantPrefillSequence(generateData.messages, trailingPrefill)
         : false;
     const nativePrefillRemoved = !trailingPrefillRemoved && settings.useStartReplyWith
         ? removeTrailingAssistantPrefill(generateData.messages, prefill)

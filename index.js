@@ -176,6 +176,7 @@ function handleChatCompletionSettingsReady(generateData) {
             'custom': 'custom prefill',
             'start-reply-with': 'Start Reply With',
             'trailing-assistant': 'trailing assistant message',
+            'trailing-assistant+start-reply-with': 'trailing assistant message + Start Reply With',
         };
         const sourceNote = `; source: ${sourceLabels[result.prefillSource] ?? result.prefillSource}`;
         setStatus(

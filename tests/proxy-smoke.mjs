@@ -85,7 +85,7 @@ const trailingRequest = {
     reverse_proxy: baseUrl,
     frequency_penalty: 0.75,
     presence_penalty: 0.5,
-    messages: [{ role: 'assistant', content: 'Reply with exactly OK.\nAssistant reply: ' }],
+    messages: [{ role: 'assistant', content: 'Reply with exactly OK.' }],
     custom_prompt_post_processing: '',
 };
 const trailingResult = injectFunctionResponsePrefill(
@@ -93,14 +93,16 @@ const trailingResult = injectFunctionResponsePrefill(
     {
         ...DEFAULT_SETTINGS,
         captureTrailingAssistantPrefill: true,
+        useStartReplyWith: true,
         useOpenAIProxyTransport: true,
     },
-    '',
+    'Assistant reply: ',
     { idFactory: () => 'sfr_trailing_smoke_test' },
 );
 assert.equal(trailingResult.injected, true);
-assert.equal(trailingResult.prefillSource, 'trailing-assistant');
+assert.equal(trailingResult.prefillSource, 'trailing-assistant+start-reply-with');
 assert.equal(trailingResult.trailingPrefillRemoved, true);
+assert.equal(trailingRequest.messages.at(-1).content, 'Reply with exactly OK.\n\nAssistant reply: ');
 assert.equal(trailingRequest.chat_completion_source, 'openai');
 assert.equal(Object.hasOwn(trailingRequest, 'frequency_penalty'), false);
 assert.equal(Object.hasOwn(trailingRequest, 'presence_penalty'), false);

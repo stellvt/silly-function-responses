@@ -196,6 +196,11 @@ test('detects only plain non-empty trailing assistant messages', () => {
         tool_calls: [{ id: 'call' }],
     }]), null);
     assert.equal(getTrailingAssistantPrefill([{ role: 'assistant', content: [{ type: 'text', text: 'x' }] }]), null);
+    assert.equal(getTrailingAssistantPrefill([
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'FIRST-' },
+        { role: 'assistant', content: 'SECOND-' },
+    ]), 'FIRST-\n\nSECOND-');
 });
 
 test('captures a trailing assistant prefill without configured prefill text', () => {
@@ -229,6 +234,50 @@ test('trailing assistant prefill overrides configured prefill text', () => {
     assert.equal(result.prefillSource, 'trailing-assistant');
     assert.equal(data.messages.at(-1).content, 'TRAILING-');
     assert.equal(data.messages.some(message => message.content === 'CUSTOM-'), false);
+});
+
+test('Start Reply With is appended after a captured trailing prefill', () => {
+    const data = request({
+        messages: [
+            { role: 'user', content: 'Hello' },
+            { role: 'assistant', content: 'TRAILING-' },
+        ],
+    });
+    const settings = {
+        ...DEFAULT_SETTINGS,
+        captureTrailingAssistantPrefill: true,
+        useStartReplyWith: true,
+    };
+    const result = injectFunctionResponsePrefill(data, settings, 'START-', {
+        idFactory: () => 'sfr_trailing_then_start',
+    });
+
+    assert.equal(result.prefillSource, 'trailing-assistant+start-reply-with');
+    assert.equal(result.trailingPrefillRemoved, true);
+    assert.equal(data.messages.at(-1).content, 'TRAILING-\n\nSTART-');
+});
+
+test('does not duplicate Start Reply With already present after trailing prefills', () => {
+    const data = request({
+        messages: [
+            { role: 'user', content: 'Hello' },
+            { role: 'assistant', content: 'TRAILING-' },
+            { role: 'assistant', content: 'START-' },
+        ],
+    });
+    const settings = {
+        ...DEFAULT_SETTINGS,
+        captureTrailingAssistantPrefill: true,
+        useStartReplyWith: true,
+    };
+    const result = injectFunctionResponsePrefill(data, settings, 'START-', {
+        idFactory: () => 'sfr_existing_start_tail',
+    });
+
+    assert.equal(result.prefillSource, 'trailing-assistant+start-reply-with');
+    assert.equal(result.trailingPrefillRemoved, true);
+    assert.equal(data.messages.length, 3);
+    assert.equal(data.messages.at(-1).content, 'TRAILING-\n\nSTART-');
 });
 
 test('does not remove a trailing prefill when post-processing is incompatible', () => {
